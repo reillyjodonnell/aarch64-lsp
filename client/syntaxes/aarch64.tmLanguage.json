@@ -1,0 +1,67 @@
+{
+  "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
+  "name": "AArch64 Assembly",
+  "scopeName": "source.asm.aarch64",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#labels" },
+    { "include": "#directives" },
+    { "include": "#registers" },
+    { "include": "#immediates" },
+    { "include": "#strings" },
+    { "include": "#mnemonics" }
+  ],
+  "repository": {
+    "comments": {
+      "patterns": [
+        { "name": "comment.line.double-slash.asm", "match": "//.*$" },
+        { "name": "comment.block.asm", "begin": "/\\*", "end": "\\*/" }
+      ]
+    },
+    "labels": {
+      "patterns": [
+        {
+          "name": "entity.name.label.asm",
+          "match": "^[ \\t]*([A-Za-z_.$][\\w.$]*)(:)"
+        }
+      ]
+    },
+    "directives": {
+      "patterns": [
+        {
+          "name": "keyword.directive.asm",
+          "match": "(?i)(?<![\\w.])\\.(text|data|section|globl|global|type|size|align)\\b"
+        }
+      ]
+    },
+    "registers": {
+      "patterns": [
+        {
+          "name": "variable.language.register.aarch64",
+          "match": "(?i)(?<![\\w.])(?:x(?:[12]?[0-9]|30)|w(?:[12]?[0-9]|30)|sp|xzr|wzr|lr|fp)\\b"
+        }
+      ]
+    },
+    "immediates": {
+      "patterns": [
+        {
+          "name": "constant.numeric.immediate.aarch64",
+          "match": "#-?(?:0x[0-9A-Fa-f]+|[0-9]+)\\b"
+        }
+      ]
+    },
+    "strings": {
+      "patterns": [
+        { "name": "string.quoted.double.asm", "begin": "\"", "end": "\"" }
+      ]
+    },
+    "mnemonics": {
+      "patterns": [
+        {
+          "name": "keyword.other.mnemonic.aarch64",
+          "match": "^[ \\t]*([A-Za-z][A-Za-z0-9_.]*)\\b"
+        }
+      ]
+    }
+  }
+}

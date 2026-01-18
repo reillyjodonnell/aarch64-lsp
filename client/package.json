@@ -1,0 +1,37 @@
+{
+  "name": "aarch64-lsp-client",
+  "version": "0.0.1",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "main": "./out/extension.js",
+  "scripts": {
+    "build": "bun build src/extension.ts --outdir out --target node --external vscode"
+  },
+  "contributes": {
+    "grammars": [
+      {
+        "language": "aarch64",
+        "scopeName": "source.asm.aarch64",
+        "path": "./syntaxes/aarch64.tmLanguage.json"
+      }
+    ],
+    "languages": [
+      {
+        "id": "aarch64",
+        "aliases": [
+          "AArch64 Assembly",
+          "aarch64 Assembly"
+        ],
+        "extensions": [
+          ".aarch64",
+          ".aarch64.s"
+        ],
+        "configuration": "./language-configuration.json"
+      }
+    ]
+  },
+  "dependencies": {
+    "vscode-languageclient": "^9.0.1"
+  }
+}
