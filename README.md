@@ -1,4 +1,7 @@
 ## AArch64 LSP
+<img width="2208" height="674" alt="image" src="https://github.com/user-attachments/assets/d298504e-e719-4a94-a3d4-05a8222e7aa2" />
+
+
 
 ### Server
 
@@ -12,3 +15,5 @@
 4. Open an `.aarch64` file in the new window
 
 Note when updating client or server, be sure to reload the window from the client
+
+
