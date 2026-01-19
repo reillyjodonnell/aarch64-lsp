@@ -4,7 +4,9 @@
   "type": "module",
   "private": true,
   "scripts": {
-    "server": "bun --hot run src/server.ts --stdio"
+    "server": "bun --hot run src/server.ts --stdio",
+    "test": "bun test",
+    "test:hot": "bun test --watch"
   },
   "devDependencies": {
     "@types/bun": "latest"

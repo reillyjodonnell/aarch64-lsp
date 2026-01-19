@@ -1,65 +1,608 @@
 {
   "$schema": "https://raw.githubusercontent.com/martinring/tmlanguage/master/tmlanguage.json",
-  "name": "AArch64 Assembly",
+  "name": "AArch64 Assembly (GAS)",
   "scopeName": "source.asm.aarch64",
   "patterns": [
     { "include": "#comments" },
+    { "include": "#preprocessor" },
     { "include": "#labels" },
     { "include": "#directives" },
-    { "include": "#registers" },
-    { "include": "#immediates" },
-    { "include": "#strings" },
-    { "include": "#mnemonics" }
+    { "include": "#instructions" }
   ],
   "repository": {
     "comments": {
       "patterns": [
-        { "name": "comment.line.double-slash.asm", "match": "//.*$" },
-        { "name": "comment.block.asm", "begin": "/\\*", "end": "\\*/" }
+        {
+          "name": "comment.line.double-slash.asm.aarch64",
+          "match": "//.*$"
+        },
+        {
+          "name": "comment.line.at-sign.asm.aarch64",
+          "match": "@.*$"
+        },
+        {
+          "name": "comment.block.asm.aarch64",
+          "begin": "/\\*",
+          "end": "\\*/",
+          "name": "comment.block.asm.aarch64"
+        }
       ]
     },
+
+    "preprocessor": {
+      "patterns": [
+        {
+          "name": "meta.preprocessor.asm.aarch64",
+          "match": "^\\s*(#)\\s*(include|define|undef|ifdef|ifndef|if|elif|else|endif|error|warning|pragma)\\b",
+          "captures": {
+            "1": { "name": "punctuation.definition.directive.asm.aarch64" },
+            "2": {
+              "name": "keyword.control.directive.preprocessor.asm.aarch64"
+            }
+          }
+        },
+        {
+          "name": "meta.preprocessor.include.asm.aarch64",
+          "begin": "(#)\\s*(include)\\s*(<)",
+          "end": "(>)",
+          "beginCaptures": {
+            "1": { "name": "punctuation.definition.directive.asm.aarch64" },
+            "2": { "name": "keyword.control.directive.include.asm.aarch64" },
+            "3": { "name": "punctuation.definition.string.begin.asm.aarch64" }
+          },
+          "endCaptures": {
+            "1": { "name": "punctuation.definition.string.end.asm.aarch64" }
+          },
+          "contentName": "string.quoted.other.include.asm.aarch64"
+        }
+      ]
+    },
+
     "labels": {
       "patterns": [
         {
-          "name": "entity.name.label.asm",
-          "match": "^[ \\t]*([A-Za-z_.$][\\w.$]*)(:)"
+          "comment": "Label definition",
+          "match": "^\\s*([A-Za-z_.$][A-Za-z0-9_.$]*)(:)",
+          "captures": {
+            "1": { "name": "entity.name.function.label.asm.aarch64" },
+            "2": { "name": "punctuation.separator.asm.aarch64" }
+          }
+        },
+        {
+          "comment": "Local numeric label definition (GAS style)",
+          "match": "^\\s*([0-9]+)(:)",
+          "captures": {
+            "1": { "name": "entity.name.label.local.asm.aarch64" },
+            "2": { "name": "punctuation.separator.asm.aarch64" }
+          }
+        },
+        {
+          "comment": "Local numeric label reference (forward/backward)",
+          "name": "entity.name.label.local.reference.asm.aarch64",
+          "match": "\\b([0-9]+)([fb])\\b"
         }
       ]
     },
+
     "directives": {
       "patterns": [
         {
-          "name": "keyword.directive.asm",
-          "match": "(?i)(?<![\\w.])\\.(text|data|section|globl|global|type|size|align)\\b"
+          "comment": "Section directives",
+          "name": "keyword.control.directive.section.asm.aarch64",
+          "match": "(?i)^\\s*\\.(text|data|bss|rodata|section)\\b"
+        },
+        {
+          "comment": "Symbol directives",
+          "name": "keyword.control.directive.symbol.asm.aarch64",
+          "match": "(?i)\\.(globl|global|local|weak|hidden|protected|internal|type|size|func|endfunc)\\b"
+        },
+        {
+          "comment": "Data definition directives",
+          "name": "keyword.control.directive.data.asm.aarch64",
+          "match": "(?i)\\.(byte|hword|short|word|long|quad|octa|float|single|double|ascii|asciz|string|zero|fill|space|skip)\\b"
+        },
+        {
+          "comment": "Alignment directives",
+          "name": "keyword.control.directive.align.asm.aarch64",
+          "match": "(?i)\\.(align|balign|p2align)\\b"
+        },
+        {
+          "comment": "Macro directives",
+          "name": "keyword.control.directive.macro.asm.aarch64",
+          "match": "(?i)\\.(macro|endm|exitm|purgem|irp|irpc|rept|endr)\\b"
+        },
+        {
+          "comment": "Conditional assembly directives",
+          "name": "keyword.control.directive.conditional.asm.aarch64",
+          "match": "(?i)\\.(if|ifdef|ifndef|else|elseif|endif|ifc|ifeqs|ifne|iflt|ifle|ifgt|ifge|ifnc|ifeq)\\b"
+        },
+        {
+          "comment": "Symbol value directives",
+          "name": "keyword.control.directive.assignment.asm.aarch64",
+          "match": "(?i)\\.(equ|equiv|set|comm|lcomm)\\b"
+        },
+        {
+          "comment": "File and location directives",
+          "name": "keyword.control.directive.file.asm.aarch64",
+          "match": "(?i)\\.(file|loc|loc_mark_labels)\\b"
+        },
+        {
+          "comment": "CFI directives (Call Frame Information)",
+          "name": "keyword.control.directive.cfi.asm.aarch64",
+          "match": "(?i)\\.cfi_(startproc|endproc|personality|lsda|def_cfa|def_cfa_register|def_cfa_offset|adjust_cfa_offset|offset|rel_offset|register|restore|undefined|same_value|remember_state|restore_state|return_column|signal_frame|window_save|escape|val_encoded_addr|sections|b_key_frame)\\b"
+        },
+        {
+          "comment": "AArch64-specific directives",
+          "name": "keyword.control.directive.arch.asm.aarch64",
+          "match": "(?i)\\.(arch|arch_extension|cpu|fpu|object_arch|tlsdescadd|tlsdesccall|tlsdescldr|variant_pcs|req|unreq)\\b"
+        },
+        {
+          "comment": "Pool and literal directives",
+          "name": "keyword.control.directive.pool.asm.aarch64",
+          "match": "(?i)\\.(pool|ltorg)\\b"
+        },
+        {
+          "comment": "Other common directives",
+          "name": "keyword.control.directive.other.asm.aarch64",
+          "match": "(?i)\\.(include|incbin|print|error|warning|abort|end|org|pushsection|popsection|previous|subsection)\\b"
+        },
+        {
+          "comment": "Symbol type arguments",
+          "name": "storage.type.asm.aarch64",
+          "match": "(?i)%(function|object|tls_object|common|notype|gnu_indirect_function)"
+        },
+        {
+          "comment": "Section flags",
+          "name": "string.quoted.double.section-flags.asm.aarch64",
+          "match": "\"[awxMSGT?o]*\""
         }
       ]
     },
+
+    "instructions": {
+      "patterns": [
+        { "include": "#operands" },
+        { "include": "#branch-instructions" },
+        { "include": "#load-store-instructions" },
+        { "include": "#arithmetic-instructions" },
+        { "include": "#logical-instructions" },
+        { "include": "#move-instructions" },
+        { "include": "#comparison-instructions" },
+        { "include": "#simd-instructions" },
+        { "include": "#system-instructions" },
+        { "include": "#atomic-instructions" },
+        { "include": "#crypto-instructions" },
+        { "include": "#other-instructions" }
+      ]
+    },
+
+    "operands": {
+      "patterns": [
+        { "include": "#registers" },
+        { "include": "#immediates" },
+        { "include": "#strings" },
+        { "include": "#operators" },
+        { "include": "#relocations" },
+        { "include": "#symbols" }
+      ]
+    },
+
     "registers": {
       "patterns": [
         {
-          "name": "variable.language.register.aarch64",
-          "match": "(?i)(?<![\\w.])(?:x(?:[12]?[0-9]|30)|w(?:[12]?[0-9]|30)|sp|xzr|wzr|lr|fp)\\b"
+          "comment": "64-bit general purpose registers",
+          "name": "variable.parameter.register.general.64bit.asm.aarch64",
+          "match": "(?i)\\b(x(3[0-1]|[12]?[0-9]))\\b"
+        },
+        {
+          "comment": "32-bit general purpose registers",
+          "name": "variable.parameter.register.general.32bit.asm.aarch64",
+          "match": "(?i)\\b(w(3[0-1]|[12]?[0-9]))\\b"
+        },
+        {
+          "comment": "Stack pointer",
+          "name": "variable.parameter.register.sp.asm.aarch64",
+          "match": "(?i)\\b(sp|wsp)\\b"
+        },
+        {
+          "comment": "Zero registers",
+          "name": "variable.parameter.register.zero.asm.aarch64",
+          "match": "(?i)\\b(xzr|wzr)\\b"
+        },
+        {
+          "comment": "Frame pointer and link register aliases",
+          "name": "variable.parameter.register.alias.asm.aarch64",
+          "match": "(?i)\\b(fp|lr)\\b"
+        },
+        {
+          "comment": "Program counter (read-only)",
+          "name": "variable.parameter.register.pc.asm.aarch64",
+          "match": "(?i)\\bpc\\b"
+        },
+        {
+          "comment": "SIMD/FP 128-bit vector registers with arrangement",
+          "name": "variable.parameter.register.simd.asm.aarch64",
+          "match": "(?i)\\b(v(3[0-1]|[12]?[0-9]))\\.(16b|8b|8h|4h|4s|2s|2d|1d|1q|b|h|s|d|q)\\b"
+        },
+        {
+          "comment": "SIMD/FP scalar registers (q/d/s/h/b)",
+          "name": "variable.parameter.register.simd.scalar.asm.aarch64",
+          "match": "(?i)\\b([qdhsb](3[0-1]|[12]?[0-9]))\\b"
+        },
+        {
+          "comment": "SIMD vector register without arrangement",
+          "name": "variable.parameter.register.simd.asm.aarch64",
+          "match": "(?i)\\b(v(3[0-1]|[12]?[0-9]))\\b"
+        },
+        {
+          "comment": "Predicate registers (SVE)",
+          "name": "variable.parameter.register.predicate.asm.aarch64",
+          "match": "(?i)\\b(p([0-9]|1[0-5]))(\\/[mz])?\\b"
+        },
+        {
+          "comment": "SVE vector registers",
+          "name": "variable.parameter.register.sve.asm.aarch64",
+          "match": "(?i)\\b(z(3[0-1]|[12]?[0-9]))\\.(b|h|s|d|q)\\b"
+        },
+        {
+          "comment": "Special system registers",
+          "name": "variable.other.register.system.asm.aarch64",
+          "match": "(?i)\\b(nzcv|daif|currentel|spsel|sp_el0|sp_el1|sp_el2|sp_el3|elr_el1|elr_el2|elr_el3|spsr_el1|spsr_el2|spsr_el3|vbar_el1|vbar_el2|vbar_el3|sctlr_el1|sctlr_el2|sctlr_el3|tcr_el1|tcr_el2|tcr_el3|ttbr0_el1|ttbr0_el2|ttbr1_el1|mair_el1|mair_el2|mair_el3|esr_el1|esr_el2|esr_el3|far_el1|far_el2|far_el3|tpidr_el0|tpidr_el1|tpidrro_el0|fpcr|fpsr|ctr_el0|dczid_el0|midr_el1|mpidr_el1|revidr_el1|id_aa64pfr0_el1|id_aa64pfr1_el1|id_aa64mmfr0_el1|id_aa64mmfr1_el1|id_aa64mmfr2_el1|id_aa64isar0_el1|id_aa64isar1_el1|id_aa64dfr0_el1|id_aa64dfr1_el1|pmuserenr_el0|pmcr_el0|pmcntenset_el0|pmcntenclr_el0|pmovsset_el0|pmovsclr_el0|pmselr_el0|pmccntr_el0|pmxevtyper_el0|pmxevcntr_el0|cntvct_el0|cntfrq_el0|cntp_tval_el0|cntp_ctl_el0|cntp_cval_el0|cntv_tval_el0|cntv_ctl_el0|cntv_cval_el0)\\b"
+        },
+        {
+          "comment": "Element index in vector register",
+          "name": "constant.numeric.index.asm.aarch64",
+          "match": "(?<=\\])\\s*\\[(\\d+)\\]|\\[(\\d+)\\]"
         }
       ]
     },
+
     "immediates": {
       "patterns": [
         {
-          "name": "constant.numeric.immediate.aarch64",
-          "match": "#-?(?:0x[0-9A-Fa-f]+|[0-9]+)\\b"
+          "comment": "Hexadecimal immediate with #",
+          "name": "constant.numeric.hex.asm.aarch64",
+          "match": "#-?0[xX][0-9A-Fa-f_]+\\b"
+        },
+        {
+          "comment": "Binary immediate with #",
+          "name": "constant.numeric.binary.asm.aarch64",
+          "match": "#-?0[bB][01_]+\\b"
+        },
+        {
+          "comment": "Octal immediate with #",
+          "name": "constant.numeric.octal.asm.aarch64",
+          "match": "#-?0[0-7_]+\\b"
+        },
+        {
+          "comment": "Decimal immediate with #",
+          "name": "constant.numeric.decimal.asm.aarch64",
+          "match": "#-?[0-9][0-9_]*\\b"
+        },
+        {
+          "comment": "Character immediate",
+          "name": "constant.character.asm.aarch64",
+          "match": "#'(\\\\.|[^'])'"
+        },
+        {
+          "comment": "Hexadecimal number (no #)",
+          "name": "constant.numeric.hex.asm.aarch64",
+          "match": "\\b0[xX][0-9A-Fa-f_]+\\b"
+        },
+        {
+          "comment": "Binary number (no #)",
+          "name": "constant.numeric.binary.asm.aarch64",
+          "match": "\\b0[bB][01_]+\\b"
+        },
+        {
+          "comment": "Decimal number (no #)",
+          "name": "constant.numeric.decimal.asm.aarch64",
+          "match": "(?<![A-Za-z_$])\\b[0-9][0-9_]*\\b"
+        },
+        {
+          "comment": "Floating point number",
+          "name": "constant.numeric.float.asm.aarch64",
+          "match": "#?-?[0-9]+\\.[0-9]+([eE][+-]?[0-9]+)?\\b"
         }
       ]
     },
+
     "strings": {
       "patterns": [
-        { "name": "string.quoted.double.asm", "begin": "\"", "end": "\"" }
+        {
+          "name": "string.quoted.double.asm.aarch64",
+          "begin": "\"",
+          "end": "\"",
+          "patterns": [
+            {
+              "name": "constant.character.escape.asm.aarch64",
+              "match": "\\\\(?:[0-7]{1,3}|x[0-9A-Fa-f]{1,2}|[abfnrtv\\\\\"']|$)"
+            }
+          ]
+        },
+        {
+          "name": "string.quoted.single.asm.aarch64",
+          "match": "'(\\\\.|[^'])*'"
+        }
       ]
     },
-    "mnemonics": {
+
+    "operators": {
       "patterns": [
         {
-          "name": "keyword.other.mnemonic.aarch64",
-          "match": "^[ \\t]*([A-Za-z][A-Za-z0-9_.]*)\\b"
+          "comment": "Shift and extend operators",
+          "name": "keyword.operator.shift.asm.aarch64",
+          "match": "(?i)\\b(lsl|lsr|asr|ror|rrx|uxtb|uxth|uxtw|uxtx|sxtb|sxth|sxtw|sxtx|msl)\\b"
+        },
+        {
+          "comment": "Expression operators",
+          "name": "keyword.operator.expression.asm.aarch64",
+          "match": "<<|>>|\\|\\||&&|[+\\-*/%&|^~!<>=]"
+        }
+      ]
+    },
+
+    "relocations": {
+      "patterns": [
+        {
+          "comment": "AArch64 relocation operators",
+          "name": "keyword.operator.relocation.asm.aarch64",
+          "match": "(?i):(lo12|abs_g0|abs_g0_nc|abs_g0_s|abs_g1|abs_g1_nc|abs_g1_s|abs_g2|abs_g2_nc|abs_g2_s|abs_g3|pg_hi21|pg_hi21_nc|got|got_lo12|gotoff_lo14|gotoff_lo15|gotpage|gottprel|gottprel_lo12|gottprel_g0_nc|gottprel_g1|tlsdesc|tlsdesc_lo12|tlsgd|tlsgd_lo12|tlsie|tlsie_lo12|tlsle|tlsle_lo12|tlsld|tlsld_lo12|tprel|tprel_lo12|tprel_lo12_nc|tprel_g0|tprel_g0_nc|tprel_g1|tprel_g1_nc|tprel_g2|dtprel|dtprel_lo12|dtprel_lo12_nc|dtprel_g0|dtprel_g0_nc|dtprel_g1|dtprel_g1_nc|dtprel_g2):"
+        }
+      ]
+    },
+
+    "symbols": {
+      "patterns": [
+        {
+          "comment": "Symbol reference",
+          "name": "entity.name.tag.symbol.asm.aarch64",
+          "match": "(?<![0-9])\\b[A-Za-z_.$][A-Za-z0-9_.$]*\\b(?!:)"
+        }
+      ]
+    },
+
+    "branch-instructions": {
+      "patterns": [
+        {
+          "comment": "Unconditional branch",
+          "name": "keyword.control.branch.unconditional.asm.aarch64",
+          "match": "(?i)\\b(b|bl|br|blr|ret|eret)\\b"
+        },
+        {
+          "comment": "Conditional branch",
+          "name": "keyword.control.branch.conditional.asm.aarch64",
+          "match": "(?i)\\b(b\\.eq|b\\.ne|b\\.cs|b\\.hs|b\\.cc|b\\.lo|b\\.mi|b\\.pl|b\\.vs|b\\.vc|b\\.hi|b\\.ls|b\\.ge|b\\.lt|b\\.gt|b\\.le|b\\.al|b\\.nv)\\b"
+        },
+        {
+          "comment": "Compare and branch",
+          "name": "keyword.control.branch.compare.asm.aarch64",
+          "match": "(?i)\\b(cbz|cbnz|tbz|tbnz)\\b"
+        }
+      ]
+    },
+
+    "load-store-instructions": {
+      "patterns": [
+        {
+          "comment": "Basic load instructions",
+          "name": "keyword.mnemonic.memory.load.asm.aarch64",
+          "match": "(?i)\\b(ldr|ldrb|ldrh|ldrsb|ldrsh|ldrsw|ldur|ldurb|ldurh|ldursb|ldursh|ldursw|ldtr|ldtrb|ldtrh|ldtrsb|ldtrsh|ldtrsw|ldxr|ldxrb|ldxrh|ldaxr|ldaxrb|ldaxrh|ldar|ldarb|ldarh|ldnp|ldp|ldpsw)\\b"
+        },
+        {
+          "comment": "Basic store instructions",
+          "name": "keyword.mnemonic.memory.store.asm.aarch64",
+          "match": "(?i)\\b(str|strb|strh|stur|sturb|sturh|sttr|sttrb|sttrh|stxr|stxrb|stxrh|stlxr|stlxrb|stlxrh|stlr|stlrb|stlrh|stnp|stp)\\b"
+        },
+        {
+          "comment": "Exclusive pair load/store",
+          "name": "keyword.mnemonic.memory.exclusive.asm.aarch64",
+          "match": "(?i)\\b(ldxp|ldaxp|stxp|stlxp)\\b"
+        },
+        {
+          "comment": "PC-relative addressing",
+          "name": "keyword.mnemonic.memory.pcrel.asm.aarch64",
+          "match": "(?i)\\b(adr|adrp|ldr)\\b"
+        },
+        {
+          "comment": "Prefetch instructions",
+          "name": "keyword.mnemonic.memory.prefetch.asm.aarch64",
+          "match": "(?i)\\b(prfm|prfum)\\b"
+        },
+        {
+          "comment": "SIMD load/store",
+          "name": "keyword.mnemonic.memory.simd.asm.aarch64",
+          "match": "(?i)\\b(ld1|ld2|ld3|ld4|ld1r|ld2r|ld3r|ld4r|st1|st2|st3|st4)\\b"
+        }
+      ]
+    },
+
+    "arithmetic-instructions": {
+      "patterns": [
+        {
+          "comment": "Add/subtract instructions",
+          "name": "keyword.mnemonic.arithmetic.addsub.asm.aarch64",
+          "match": "(?i)\\b(add|adds|adc|adcs|sub|subs|sbc|sbcs|neg|negs|ngc|ngcs|addg|subg|subp|subps)\\b"
+        },
+        {
+          "comment": "Multiply instructions",
+          "name": "keyword.mnemonic.arithmetic.multiply.asm.aarch64",
+          "match": "(?i)\\b(mul|mneg|madd|msub|smull|smulh|smaddl|smsubl|smnegl|umull|umulh|umaddl|umsubl|umnegl)\\b"
+        },
+        {
+          "comment": "Divide instructions",
+          "name": "keyword.mnemonic.arithmetic.divide.asm.aarch64",
+          "match": "(?i)\\b(sdiv|udiv)\\b"
+        }
+      ]
+    },
+
+    "logical-instructions": {
+      "patterns": [
+        {
+          "comment": "Logical instructions",
+          "name": "keyword.mnemonic.logical.asm.aarch64",
+          "match": "(?i)\\b(and|ands|orr|orn|eor|eon|bic|bics|tst|mvn)\\b"
+        },
+        {
+          "comment": "Shift instructions",
+          "name": "keyword.mnemonic.shift.asm.aarch64",
+          "match": "(?i)\\b(lsl|lslv|lsr|lsrv|asr|asrv|ror|rorv)\\b"
+        },
+        {
+          "comment": "Bit manipulation",
+          "name": "keyword.mnemonic.bitmanip.asm.aarch64",
+          "match": "(?i)\\b(cls|clz|rbit|rev|rev16|rev32|rev64|extr|bfm|sbfm|ubfm|bfi|bfxil|sbfiz|sbfx|ubfiz|ubfx)\\b"
+        }
+      ]
+    },
+
+    "move-instructions": {
+      "patterns": [
+        {
+          "comment": "Move instructions",
+          "name": "keyword.mnemonic.move.asm.aarch64",
+          "match": "(?i)\\b(mov|movz|movn|movk|mvn)\\b"
+        },
+        {
+          "comment": "Conditional move",
+          "name": "keyword.mnemonic.move.conditional.asm.aarch64",
+          "match": "(?i)\\b(csel|csinc|csinv|csneg|cset|csetm|cinc|cinv|cneg)\\b"
+        }
+      ]
+    },
+
+    "comparison-instructions": {
+      "patterns": [
+        {
+          "comment": "Compare instructions",
+          "name": "keyword.mnemonic.compare.asm.aarch64",
+          "match": "(?i)\\b(cmp|cmn|ccmp|ccmn|tst)\\b"
+        },
+        {
+          "comment": "Conditional compare",
+          "name": "keyword.mnemonic.compare.conditional.asm.aarch64",
+          "match": "(?i)\\b(ccmp|ccmn)\\b"
+        }
+      ]
+    },
+
+    "simd-instructions": {
+      "patterns": [
+        {
+          "comment": "SIMD arithmetic",
+          "name": "keyword.mnemonic.simd.arithmetic.asm.aarch64",
+          "match": "(?i)\\b(fadd|fsub|fmul|fdiv|fneg|fabs|fsqrt|fmadd|fmsub|fnmadd|fnmsub|fmla|fmls|fmov|fcvt|fcvtzs|fcvtzu|scvtf|ucvtf|frinta|frintn|frintm|frintp|frintz|frinti|frintx)\\b"
+        },
+        {
+          "comment": "SIMD comparison",
+          "name": "keyword.mnemonic.simd.compare.asm.aarch64",
+          "match": "(?i)\\b(fcmp|fcmpe|fccmp|fccmpe|fcsel)\\b"
+        },
+        {
+          "comment": "SIMD vector operations",
+          "name": "keyword.mnemonic.simd.vector.asm.aarch64",
+          "match": "(?i)\\b(addv|saddlv|uaddlv|smaxv|sminv|umaxv|uminv|addp|saddl|saddl2|saddw|saddw2|uaddl|uaddl2|uaddw|uaddw2|ssubl|ssubl2|ssubw|ssubw2|usubl|usubl2|usubw|usubw2|sabal|sabal2|sabdl|sabdl2|smlal|smlal2|smlsl|smlsl2|smull|smull2|uabal|uabal2|uabdl|uabdl2|umlal|umlal2|umlsl|umlsl2|umull|umull2|pmull|pmull2|sqdmlal|sqdmlal2|sqdmlsl|sqdmlsl2|sqdmull|sqdmull2|sqadd|sqsub|uqadd|uqsub|suqadd|usqadd|sqabs|sqneg|abs|neg|smax|smin|umax|umin|sabd|uabd|saba|uaba|mla|mls|mul|pmul|sqdmulh|sqrdmulh|fmulx|frecps|frsqrts)\\b"
+        },
+        {
+          "comment": "SIMD permute/extract",
+          "name": "keyword.mnemonic.simd.permute.asm.aarch64",
+          "match": "(?i)\\b(dup|ins|mov|smov|umov|ext|zip1|zip2|uzp1|uzp2|trn1|trn2|tbl|tbx|rev16|rev32|rev64)\\b"
+        },
+        {
+          "comment": "SIMD shifts",
+          "name": "keyword.mnemonic.simd.shift.asm.aarch64",
+          "match": "(?i)\\b(sshl|ushl|sshr|ushr|srshl|urshl|srshr|urshr|sqshl|uqshl|sqrshl|uqrshl|sqshrn|sqshrn2|sqrshrn|sqrshrn2|sqshrun|sqshrun2|sqrshrun|sqrshrun2|uqshrn|uqshrn2|uqrshrn|uqrshrn2|sshll|sshll2|ushll|ushll2|shl|shll|shll2|shrn|shrn2|rshrn|rshrn2|sli|sri)\\b"
+        },
+        {
+          "comment": "SIMD compare operations",
+          "name": "keyword.mnemonic.simd.cmp.asm.aarch64",
+          "match": "(?i)\\b(cmeq|cmge|cmgt|cmhi|cmhs|cmle|cmlt|cmtst|facge|facgt|fcmeq|fcmge|fcmgt|fcmle|fcmlt)\\b"
+        },
+        {
+          "comment": "SIMD bitwise",
+          "name": "keyword.mnemonic.simd.bitwise.asm.aarch64",
+          "match": "(?i)\\b(and|orr|orn|eor|bic|bif|bit|bsl|not|mvn|cnt|cls|clz|rbit)\\b"
+        }
+      ]
+    },
+
+    "system-instructions": {
+      "patterns": [
+        {
+          "comment": "System register access",
+          "name": "keyword.mnemonic.system.register.asm.aarch64",
+          "match": "(?i)\\b(mrs|msr)\\b"
+        },
+        {
+          "comment": "System instructions",
+          "name": "keyword.mnemonic.system.asm.aarch64",
+          "match": "(?i)\\b(nop|yield|wfe|wfi|sev|sevl|isb|dmb|dsb|sys|sysl|dc|ic|at|tlbi|hint)\\b"
+        },
+        {
+          "comment": "Exception generation",
+          "name": "keyword.mnemonic.system.exception.asm.aarch64",
+          "match": "(?i)\\b(svc|hvc|smc|brk|hlt|dcps1|dcps2|dcps3|drps)\\b"
+        },
+        {
+          "comment": "Barrier options",
+          "name": "constant.language.barrier.asm.aarch64",
+          "match": "(?i)\\b(sy|st|ld|ish|ishst|ishld|nsh|nshst|nshld|osh|oshst|oshld)\\b"
+        }
+      ]
+    },
+
+    "atomic-instructions": {
+      "patterns": [
+        {
+          "comment": "Atomic memory operations (LSE)",
+          "name": "keyword.mnemonic.atomic.asm.aarch64",
+          "match": "(?i)\\b(ldadd|ldadda|ldaddal|ldaddl|ldaddab|ldaddalb|ldaddlb|ldaddah|ldaddalh|ldaddlh|ldclr|ldclra|ldclral|ldclrl|ldclrab|ldclralb|ldclrlb|ldclrah|ldclralh|ldclrlh|ldeor|ldeora|ldeoral|ldeorl|ldeorab|ldeoralb|ldeorlb|ldeorah|ldeoralh|ldeorlh|ldset|ldseta|ldsetal|ldsetl|ldsetab|ldsetalb|ldsetlb|ldsetah|ldsetalh|ldsetlh|ldsmax|ldsmaxa|ldsmaxal|ldsmaxl|ldsmaxab|ldsmaxalb|ldsmaxlb|ldsmaxah|ldsmaxalh|ldsmaxlh|ldsmin|ldsmina|ldsminal|ldsminl|ldsminab|ldsminalb|ldsminlb|ldsminah|ldsminalh|ldsminlh|ldumax|ldumaxa|ldumaxal|ldumaxl|ldumaxab|ldumaxalb|ldumaxlb|ldumaxah|ldumaxalh|ldumaxlh|ldumin|ldumina|lduminal|lduminl|lduminab|lduminalb|lduminlb|lduminah|lduminalh|lduminlh|stadd|staddl|staddb|staddlb|staddh|staddlh|stclr|stclrl|stclrb|stclrlb|stclrh|stclrlh|steor|steorl|steorb|steorlb|steorh|steorlh|stset|stsetl|stsetb|stsetlb|stseth|stsetlh|stsmax|stsmaxl|stsmaxb|stsmaxlb|stsmaxh|stsmaxlh|stsmin|stsminl|stsminb|stsminlb|stsminh|stsminlh|stumax|stumaxl|stumaxb|stumaxlb|stumaxh|stumaxlh|stumin|stuminl|stuminb|stuminlb|stuminh|stuminlh|swp|swpa|swpal|swpl|swpab|swpalb|swplb|swpah|swpalh|swplh|cas|casa|casal|casl|casab|casalb|caslb|casah|casalh|caslh|casp|caspa|caspal|caspl)\\b"
+        }
+      ]
+    },
+
+    "crypto-instructions": {
+      "patterns": [
+        {
+          "comment": "AES instructions",
+          "name": "keyword.mnemonic.crypto.aes.asm.aarch64",
+          "match": "(?i)\\b(aese|aesd|aesmc|aesimc)\\b"
+        },
+        {
+          "comment": "SHA instructions",
+          "name": "keyword.mnemonic.crypto.sha.asm.aarch64",
+          "match": "(?i)\\b(sha1c|sha1p|sha1m|sha1h|sha1su0|sha1su1|sha256h|sha256h2|sha256su0|sha256su1|sha512h|sha512h2|sha512su0|sha512su1)\\b"
+        },
+        {
+          "comment": "Polynomial multiply",
+          "name": "keyword.mnemonic.crypto.pmull.asm.aarch64",
+          "match": "(?i)\\b(pmull|pmull2)\\b"
+        }
+      ]
+    },
+
+    "other-instructions": {
+      "patterns": [
+        {
+          "comment": "Pointer authentication",
+          "name": "keyword.mnemonic.pauth.asm.aarch64",
+          "match": "(?i)\\b(pacia|paciasp|paciaz|paciza|pacia1716|pacib|pacibsp|pacibz|pacizb|pacib1716|pacda|pacdza|pacdb|pacdzb|autia|autiasp|autiaz|autiza|autia1716|autib|autibsp|autibz|autizb|autib1716|autda|autdza|autdb|autdzb|xpaci|xpacd|xpaclri)\\b"
+        },
+        {
+          "comment": "Memory tagging (MTE)",
+          "name": "keyword.mnemonic.mte.asm.aarch64",
+          "match": "(?i)\\b(irg|gmi|addg|subg|stg|stzg|st2g|stz2g|ldg|stgp|ldgm|stgm|stzgm)\\b"
+        },
+        {
+          "comment": "Branch target identification",
+          "name": "keyword.mnemonic.bti.asm.aarch64",
+          "match": "(?i)\\b(bti)\\b"
+        },
+        {
+          "comment": "Generic catch-all for any remaining instruction-like tokens at line start",
+          "name": "keyword.mnemonic.other.asm.aarch64",
+          "match": "(?i)^\\s*([a-z][a-z0-9]*)\\b"
         }
       ]
     }

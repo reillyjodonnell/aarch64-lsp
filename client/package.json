@@ -6,6 +6,7 @@
   },
   "main": "./out/extension.js",
   "scripts": {
+    "dev": "bun build src/extension.ts --outdir out --target node --external vscode --watch",
     "build": "bun build src/extension.ts --outdir out --target node --external vscode"
   },
   "contributes": {
