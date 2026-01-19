@@ -9,11 +9,10 @@ const trackedRegisters = {
   x3: true,
   x4: true,
   x5: true,
-
   x8: true,
-};
+} as const;
 
-type Registers = 'x0' | 'x1' | 'x2' | 'x3' | 'x4' | 'x5' | 'x8';
+type Registers = keyof typeof trackedRegisters;
 
 type RegisterInfo = Record<
   Registers,
@@ -26,7 +25,7 @@ type RegisterInfo = Record<
   } | null
 >;
 
-function isTrackedReg(s: string) {
+function isTrackedReg(s: string): s is Registers {
   return s in trackedRegisters;
 }
 
@@ -56,16 +55,45 @@ export const getHintsFromTokens = (data: Record<number, Array<Token>>) => {
       if (value[1]?.text === '#0') {
         // we want to update the lines containing the x0->x5., x8, and svc
         const existing = hintsPerLine[lineNumber] ?? [];
+        const x8Entry = registerInfo['x8'];
 
-        if (registerInfo['x8']) {
-          const number =
-            registerInfo['x8']?.value &&
-            getNumberFromImmediate(registerInfo['x8']?.value);
-          const match = typeof number === 'number' && syscalls[number]?.name;
+        if (x8Entry) {
+          const number = getNumberFromImmediate(x8Entry.value);
+          const syscallEntry = syscalls[number];
+          if (!syscallEntry) continue;
+          const match = typeof number === 'number' && syscallEntry.name;
+
+          // write tip for x8
+          const existingTipForX8 = hintsPerLine[x8Entry.setLine] ?? [];
+          existingTipForX8.push({
+            inline: `syscall: ${syscallEntry.name} (${number})`,
+            hover: '',
+          });
+          hintsPerLine[x8Entry.setLine] = existingTipForX8;
+
+          for (const k of Object.keys(syscallEntry.args)) {
+            if (!isTrackedReg(k)) continue;
+            const entry = registerInfo[k];
+            if (!entry) continue;
+            const existingHintForRegisters = hintsPerLine[entry.setLine] ?? [];
+            const value =
+              syscallEntry.args[k]?.name === 'fd' &&
+              fdLookup[getNumberFromImmediate(entry.value)]
+                ? fdLookup[getNumberFromImmediate(entry.value)]
+                : entry.value;
+            existingHintForRegisters.push({
+              hover: '',
+              inline: `${syscallEntry.args[k]?.name}: ${value}`,
+            });
+            hintsPerLine[entry.setLine] = existingHintForRegisters;
+          }
 
           existing.push({
             hover: '',
-            inline: match && `sys call: ${match}`,
+            //read(fd=0, buf=&buffer, count=20) → x0=bytes_read | -errno
+            inline: match
+              ? `${syscallEntry.name}(args) → ${syscallEntry.returns?.x0}`
+              : '',
           });
         }
 
@@ -110,14 +138,57 @@ export const getHintsFromTokens = (data: Record<number, Array<Token>>) => {
   return hintsPerLine;
 };
 
-const getNumberFromImmediate = (str: string) => {
+const getNumberFromImmediate = (str: string): number => {
   const number = str.split('#')[1];
   return Number(number);
 };
 
-const syscalls = {
-  93: { name: 'exit', args: ['status (x0)'] },
-  63: { name: 'read', args: ['fd (x0)', 'buf (x1)', 'count (x2)'] },
-  64: { name: 'write', args: ['fd (x0)', 'buf (x1)', 'count (x2)'] },
-  // ... etc
+type SyscallEntry = {
+  name: string;
+  args: Record<string, { name: string; notes?: string }>;
+  returns?: unknown;
+};
+
+const syscalls: Record<number, SyscallEntry> = {
+  56: {
+    name: 'openat',
+    args: {
+      x0: { name: 'dirfd', notes: 'often AT_FDCWD = -100' },
+      x1: { name: 'pathname' },
+      x2: { name: 'flags' },
+      x3: { name: 'mode' },
+    },
+    returns: { x0: 'fd (>=0) or -errno' },
+  },
+  63: {
+    name: 'read',
+    args: {
+      x0: { name: 'fd', notes: '0=stdin, 1=stdout, 2=stderr (conventional)' },
+      x1: { name: 'buf' },
+      x2: { name: 'count' },
+    },
+    returns: { x0: 'bytes_read (>=0) or -errno' },
+  },
+  64: {
+    name: 'write',
+    args: {
+      x0: { name: 'fd', notes: '0=stdin, 1=stdout, 2=stderr (conventional)' },
+      x1: { name: 'buf' },
+      x2: { name: 'count' },
+    },
+    returns: { x0: 'bytes_written (>=0) or -errno' },
+  },
+  93: {
+    name: 'exit',
+    args: {
+      x0: { name: 'status' },
+    },
+    returns: { x0: '(does not return)' },
+  },
+} as const;
+
+const fdLookup = {
+  0: 'stdin',
+  1: 'stdout',
+  2: 'stderr',
 };

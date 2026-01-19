@@ -6,14 +6,17 @@ import { getHintsFromTokens } from './analyzer';
 
 // uri + version : {text: ""}
 
-const structure: Record<string, { tokens: Record<number, Array<Token>> }> = {};
+const structure: Record<
+  string,
+  { tokensByLine: Record<number, Array<Token>> }
+> = {};
 
 export const Model = {
   handleSync: (e: { document: TextDocument }) => {
     const text = e.document.getText();
-    const tokens = tokenizeDocument(text);
+    const tokensByLine = tokenizeDocument(text);
     structure[e.document.uri] = {
-      tokens,
+      tokensByLine,
     };
   },
 
@@ -21,6 +24,6 @@ export const Model = {
     const res = structure[uri];
     if (!res) return [];
 
-    return getHintsFromTokens(res.tokens);
+    return getHintsFromTokens(res.tokensByLine);
   },
 };
