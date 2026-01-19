@@ -10,10 +10,15 @@ import {
 import { TextDocuments } from 'vscode-languageserver/node';
 import { TextDocument } from 'vscode-languageserver-textdocument';
 import { tokenizeLine, type Token } from './tokenizer';
+import { Model } from './model';
 
 let allTokens: Record<number, Array<Token>> = {};
 
+const model = Model;
+
 const documents = new TextDocuments(TextDocument);
+
+documents.onDidChangeContent(model.handleSync);
 
 const syscalls = {
   93: { name: 'exit', args: ['status (x0)'] },
@@ -156,116 +161,45 @@ function codeEndColumn(line: string): number {
 }
 
 connection.languages.inlayHint.on((params): InlayHint[] => {
+  const { range } = params;
+
+  const hints: InlayHint[] = [];
+
   const doc = documents.get(params.textDocument.uri);
   if (!doc) return [];
 
   const text = doc.getText();
   const lines = text.split(/\r?\n/);
 
-  const hints: InlayHint[] = [];
+  const hintsPerLine = model.getTokensForFileByUri(params.textDocument.uri);
+  const startLine = range.start.line;
+  const endLine = range.end.line;
 
-  for (let line = 0; line < lines.length; line++) {
+  for (const [key, value] of Object.entries(hintsPerLine)) {
+    const line = Number(key);
+    if (line < startLine || line > endLine) continue;
+    // if outside of line range return
     const lineText = lines[line];
-    if (lineText?.trim().length === 0) continue;
-
+    if (!lineText) continue;
     const end = codeEndColumn(lineText);
-    const code = lineText?.slice(0, end);
-
-    const trimmed = code?.trimStart();
-    if (trimmed?.startsWith('.') || trimmed?.endsWith(':')) continue; // directives + labels
-
-    if (code?.trim().length === 0) continue; // comment-only line → skip
-
-    if (code?.length) {
-      const result = tokenizeLine(code);
-      console.log('result: ', result);
-      allTokens[line] = result;
-    }
-
-    if (
-      allTokens[line]?.find(
-        (token) => token.kind === 'ident' && token.text === 'x0',
-      )
-    ) {
-      hints.push({
-        position: { line, character: end },
-        label: ' ⟵ file descriptor (0: stdin)',
+    for (const item of value) {
+      const entry: InlayHint = {
+        label: ` ⟵ ${item.inline}`,
+        position: {
+          line,
+          character: end,
+        },
         paddingLeft: true,
-        kind: InlayHintKind.Parameter, // doesn't really matter for v1
         paddingRight: false,
-      });
+      };
+      hints.push(entry);
     }
-
-    if (
-      allTokens[line]?.find(
-        (token) => token.kind === 'ident' && token.text === '=buffer',
-      )
-    ) {
-      hints.push({
-        position: { line, character: end },
-        label: ' ⟵ buf: addr(buffer)',
-        paddingLeft: true,
-        kind: InlayHintKind.Parameter, // doesn't really matter for v1
-        paddingRight: false,
-      });
-    }
-
-    if (
-      allTokens[line]?.find(
-        (token) => token.kind === 'ident' && token.text === 'x2',
-      )
-    ) {
-      hints.push({
-        position: { line, character: end },
-        label: ' ⟵ 20 bytes',
-        paddingLeft: true,
-        kind: InlayHintKind.Parameter, // doesn't really matter for v1
-        paddingRight: false,
-      });
-    }
-
-    if (
-      allTokens[line]?.find(
-        (token) => token.kind === 'ident' && token.text === 'x8',
-      )
-    ) {
-      hints.push({
-        position: { line, character: end },
-        label: ' ⟵ syscall: read',
-        paddingLeft: true,
-        kind: InlayHintKind.Parameter, // doesn't really matter for v1
-        paddingRight: false,
-      });
-    }
-
-    if (
-      allTokens[line]?.find(
-        (token) => token.kind === 'ident' && token.text === 'svc',
-      )
-    ) {
-      hints.push({
-        position: { line, character: end },
-        label:
-          ' ⟵ (fd=stdin(0), buf=addr(buffer), count=20) -> x0=bytes_read | -errno',
-        paddingLeft: true,
-        kind: InlayHintKind.Parameter, // doesn't really matter for v1
-        paddingRight: false,
-      });
-    }
-
-    // hints.push({
-    //   position: { line, character: end },
-    //   label: ' ⟵ fd: stdin',
-    //   paddingLeft: true,
-    //   kind: InlayHintKind.Parameter, // doesn't really matter for v1
-    //   paddingRight: false,
-    // });
   }
-
   return hints;
 });
 
 documents.listen(connection);
+
 connection.listen();
 
 connection.onHover((params) => {

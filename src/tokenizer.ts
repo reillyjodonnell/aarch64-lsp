@@ -7,11 +7,26 @@ export type Token = {
   endCol: number;
 };
 
+export const tokenizeDocument = (text: string) => {
+  const data: Record<number, Array<Token>> = {};
+
+  const lines = text.split(/\r?\n/);
+
+  for (let line = 0; line < lines.length; line++) {
+    const lineText = lines[line];
+    if (lineText && lineText?.trim().length === 0) continue;
+
+    if (lineText) {
+      data[line] = tokenizeLine(lineText);
+    }
+  }
+  return data;
+};
+
 export const tokenizeLine = (text: string) => {
   let i = 0;
   let buffer = '';
-  let quote: '"' | "'" | null = null;
-  let tokenKind: TokenKind = 'ident';
+  let state: 'inString' | 'default' = 'default';
   let tokenStart = 0;
 
   let result: Array<Token> = [];
@@ -19,22 +34,27 @@ export const tokenizeLine = (text: string) => {
   const flush = (endCol: number) => {
     if (buffer.length === 0) return;
     result.push({
-      kind: tokenKind,
+      kind: state === 'inString' ? 'string' : 'ident',
       text: buffer,
       startCol: tokenStart,
       endCol,
     });
     buffer = '';
-    tokenKind = 'ident';
   };
 
   while (i < text.length) {
     let char = text[i];
-    // if we're in a string
-    if (quote !== null) {
+    if (state === 'inString') {
       buffer += char;
       if (char === "'" || char === '"') {
-        quote = null;
+        result.push({
+          kind: 'string',
+          text: buffer,
+          startCol: tokenStart,
+          endCol: i + 1,
+        });
+        buffer = '';
+        state = 'default';
       }
 
       i++;
@@ -52,8 +72,6 @@ export const tokenizeLine = (text: string) => {
       }
       case ',': {
         flush(i);
-
-        // emit comma token
         result.push({
           kind: 'comma',
           startCol: i,
@@ -66,8 +84,7 @@ export const tokenizeLine = (text: string) => {
       }
       case "'":
       case '"': {
-        quote = char;
-        tokenKind = 'string';
+        state = 'inString';
         buffer = '';
         tokenStart = i;
         buffer += char;
